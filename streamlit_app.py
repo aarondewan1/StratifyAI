@@ -20,14 +20,18 @@ with open("app/data/market_data.json", "r") as f:
     market_data = json.load(f)
 months_count = len(market_data)
 
-# Slider to pick how many months to simulate (for “Live Allocation”)
-months_to_run = st.sidebar.slider(
-    "Months to simulate",
-    min_value=1,
-    max_value=months_count,
-    value=1,
-    help="Only run the last N months of your historical data"
-)
+# If you have more than one month, show a slider; otherwise default to 1
+if months_count > 1:
+    months_to_run = st.sidebar.slider(
+        "Months to simulate",
+        min_value=1,
+        max_value=months_count,
+        value=1,
+        help="Only run the last N months of your historical data"
+    )
+else:
+    months_to_run = 1
+
 
 # ---- Live Allocation ----
 if mode == "Live Allocation":
