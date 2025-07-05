@@ -1,30 +1,28 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
-from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-import os
-
-# Load environment variables from .env file
-load_dotenv()
-
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
-    openai_api_key: str = Field(default=None, alias="OPENAI_API_KEY")
-    debug: bool = Field(default=False, alias="DEBUG")
-    serper_api_key: str = Field(default=None, alias="SERPER_API_KEY")
-    
+    """Environment-backed settings for StratifyAI."""
+    # Required API keys
+    openai_api_key: str
+    serper_api_key: str
+
+    # Optional flags
+    debug: bool = False
+
+    # Instruct Pydantic to load a local .env file for development
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
     )
 
-# Create settings instance
+# Instantiate settings (will read from environment or .env)
 settings = Settings()
 
-# Initialize LLM with API key from settings
+# Initialize the OpenAI LLM using the loaded API key
+from langchain_openai import ChatOpenAI
+
 LLM = ChatOpenAI(
-    temperature=0, 
-    model="gpt-4o",
-    openai_api_key=settings.openai_api_key
+    temperature=0,
+    model="gpt-3.5-turbo",
+    openai_api_key=settings.openai_api_key,
 )
