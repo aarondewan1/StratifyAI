@@ -4,7 +4,10 @@ import streamlit as st
 import json
 import tempfile
 from datetime import date
-from app.main import run_simulation, backtest_simulation
+
+# We’ll import both your existing monthly runner and the full-run entrypoint:
+from app.main import run__monthly_workflow, initial_state, data
+from app.main import backtest_simulation, NUM_MONTHS
 from app.types import Report
 from fpdf import FPDF
 
@@ -15,43 +18,63 @@ st.title("📊 StratifyAI: Multi-Agent Portfolio Allocator")
 st.sidebar.header("Simulation Controls")
 mode = st.sidebar.selectbox("Mode", ["Live Allocation", "Historical Backtest"])
 
-# Load your market_data.json to determine how many months you have
-with open("app/data/market_data.json", "r") as f:
-    market_data = json.load(f)
-months_count = len(market_data)
+# How many months of data do we have?
+months_count = NUM_MONTHS
 
-# If you have more than one month, show a slider; otherwise default to 1
+# If you have >1 month, show a slider. Otherwise default to 1.
 if months_count > 1:
     months_to_run = st.sidebar.slider(
         "Months to simulate",
         min_value=1,
         max_value=months_count,
         value=1,
-        help="Only run the last N months of your historical data"
+        help="Only run the first N months of your historical data",
     )
 else:
     months_to_run = 1
 
-
 # ---- Live Allocation ----
 if mode == "Live Allocation":
     st.header("🚀 Live Allocation (Today)")
+
     if st.button("Run Allocation"):
-        with st.spinner(f"Running multi-agent workflow for {months_to_run} month(s)…"):
-            # pass months_to_run into your simulation
-            result = run_simulation(months_to_run=months_to_run)
-        reports, log_lines = result["reports"], result["log"]
-        # Display each agent’s report in columns
+        # initialize progress bar and state
+        progress = st.sidebar.progress(0)
+        state = initial_state
+
+        log_lines = []
+        reports = {}
+
+        # run month by month, streaming progress
+        for idx in range(months_to_run):
+            # update progress bar
+            progress.progress((idx + 1) / months_to_run)
+
+            # invoke your per-month workflow
+            state = run__monthly_workflow(state)
+
+            # capture logs from your logger (assuming you push them into SharedState)
+            if "log" in state:
+                log_lines.extend(state["log"])
+
+        # once done, extract final reports & logs
+        # assuming your SharedState contains a dict of Reports under 'reports'
+        reports = state.get("reports", {})
+        log_lines = state.get("log", log_lines)
+
+        # display them
         cols = st.columns(len(reports))
         for col, (agent_name, rpt) in zip(cols, reports.items()):
             col.subheader(agent_name)
             col.json(rpt.dict() if isinstance(rpt, Report) else rpt)
-        # Show risk decision prominently
+
         st.markdown(f"## ⚠️ Risk Agent Decision: **{reports['Risk'].decision}**")
-        # Save last run log to disk
+
+        # write out logs
         with open("logs/last_run.log", "w") as f:
             f.write("\n".join(log_lines))
-        st.success("Allocation complete!")
+
+        st.success("✅ Allocation complete!")
 
 # ---- Historical Backtest ----
 else:
@@ -64,13 +87,14 @@ else:
         )
     with c2:
         end = st.date_input("End Date", value=date.today())
+
     if st.button("Run Backtest"):
         st.info(f"Backtesting from {start} to {end}…")
         bt_results = backtest_simulation(start, end)
         st.line_chart(bt_results["equity_curve"])
         st.json(bt_results["metrics"])
 
-# ---- Audit Log & Export ----
+# ---- Audit Log & PDF Export ----
 st.markdown("---")
 st.subheader("📝 Audit Log")
 if st.checkbox("Show raw logs"):
@@ -100,5 +124,7 @@ if st.button("Export PDF"):
         )
     except Exception:
         st.error("Run a live allocation first to generate a CIO report!")
+
+
 
 

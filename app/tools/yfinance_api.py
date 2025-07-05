@@ -2,7 +2,8 @@ import yfinance as yf
 import pandas as pd
 
 from langchain_core.tools import tool
-
+from functools import lru_cache
+from langchain_core.tools import tool
 from app.logger import logger
 
 @tool
