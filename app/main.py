@@ -120,3 +120,11 @@ def run_simulation():
 
 if __name__ == "__main__":
     run_simulation()
+
+def backtest_simulation(start_date, end_date):
+    """
+    Stub for historical backtest. Replace with real logic.
+    """
+    equity_curve = []
+    metrics = {}
+    return {"equity_curve": equity_curve, "metrics": metrics}
